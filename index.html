@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ED PULSE AI | Emergency Command Center</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#071321;color:#eaf3ff;font-family:Arial,sans-serif}
+header{background:#10243a;padding:24px 18px;border-bottom:2px solid #2d9cf0}
+h1{margin:0;color:#66d5ff;font-size:28px}
+h2{font-size:20px;margin-top:0}
+p{line-height:1.6}
+small{color:#9fb4c8}
+main{max-width:1100px;margin:auto;padding:16px}
+.card{background:#11263d;border:1px solid #29445f;border-radius:15px;padding:18px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+.metric{background:#193650;padding:15px;border-radius:12px}
+.metric strong{display:block;font-size:27px;margin-top:8px;color:#fff}
+button{background:#1675bb;color:white;border:0;border-radius:9px;padding:12px;margin:4px;cursor:pointer;font-size:14px}
+button:focus{outline:2px solid white}
+button.active{background:#17a398}
+input{width:100%;accent-color:#20c5e8}
+label{display:block;margin-top:18px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #345}
+.alert{padding:12px;border-radius:9px;margin:8px 0;background:#442c28;border-left:4px solid #ff866b}
+.good{background:#173d38;border-left-color:#39d9a3}
+.bed{min-height:70px;background:#245c53}
+.bed.busy{background:#74423d}
+.bed.selected{outline:3px solid #fff}
+.bedgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
+.bar{height:12px;background:#30465a;border-radius:12px;overflow:hidden}
+.fill{height:100%;background:#39d9a3;width:0%;transition:width .3s}
+.note{font-size:12px;color:#a9c0d4}
+</style>
+</head>
+<body>
+<header>
+<h1>🏥 ED PULSE AI</h1>
+<p>Predict the Delay. Prevent the Risk.</p>
+<small>Emergency Department Intelligent Command Center</small>
+</header>
+
+<main>
+<section class="card">
+<h2>⚡ Simulation Scenario</h2>
+<button onclick="scenario('normal')">Normal Shift</button>
+<button onclick="scenario('busy')">Busy Shift</button>
+<button onclick="scenario('critical')">Critical Surge</button>
+<p id="scenarioName"></p>
+</section>
+
+<section class="card">
+<h2>📊 Live ED Dashboard</h2>
+<div class="grid">
+<div class="metric">Total Patients<strong id="patients"></strong></div>
+<div class="metric">Boarding Patients<strong id="boarding"></strong></div>
+<div class="metric">Available Beds<strong id="beds"></strong></div>
+<div class="metric">Pending Consultations<strong id="consults"></strong></div>
+</div>
+</section>
+
+<section class="card">
+<h2>🧠 Priority Operational Insights</h2>
+<div id="insights"></div>
+</section>
+
+<section class="card">
+<h2>🚨 Patient Safety Alerts</h2>
+<div id="safety"></div>
+</section>
+
+<section class="card">
+<h2>⏱️ Patient Journey Bottlenecks</h2>
+<div id="journey"></div>
+</section>
+
+<section class="card">
+<h2>🛏️ Interactive ED Bed Map</h2>
+<p>Tap a bed to inspect its simulated status.</p>
+<div class="bedgrid" id="bedmap"></div>
+<p id="bedinfo" aria-live="polite"></p>
+</section>
+
+<section class="card">
+<h2>👩‍⚕️ Nursing Workload</h2>
+<div id="workload"></div>
+</section>
+
+<section class="card">
+<h2>🔮 AI What-If Simulator</h2>
+
+<label>Additional Acute Beds:
+<strong id="bedValue">0</strong>
+<input type="range" id="extraBeds" min="0" max="10" value="0">
+</label>
+
+<label>Additional Nurses:
+<strong id="nurseValue">0</strong>
+<input type="range" id="extraNurses" min="0" max="8" value="0">
+</label>
+
+<label>Consultation Delay Reduction:
+<strong id="consultValue">0</strong> minutes
+<input type="range" id="consultReduction" min="0" max="90" step="10" value="0">
+</label>
+
+<button onclick="resetSimulation()">Reset Interventions</button>
+
+<div class="grid">
+<div class="metric">Baseline Wait<strong id="baseline"></strong></div>
+<div class="metric">Projected Wait<strong id="projected"></strong></div>
+<div class="metric">Illustrative Improvement<strong id="improvement"></strong></div>
+<div class="metric">Operational Risk<strong id="risk"></strong></div>
+</div>
+
+<p>Estimated improvement</p>
+<div class="bar"><div class="fill" id="impactBar"></div></div>
+<p id="recommendation"></p>
+</section>
+
+<section class="card">
+<h2>ℹ️ About & Methodology</h2>
+<p>ED PULSE AI is a prototype designed to support emergency department operational awareness, patient-flow monitoring and resource planning.</p>
+<p>The current prototype uses synthetic scenarios and transparent rule-based calculations. It is not a trained machine-learning model, a validated clinical risk score, or a medical decision-making system.</p>
+<p>Future development may include predictive models trained and evaluated using appropriately authorized, de-identified operational data.</p>
+<p class="note">Demonstration only. No real patient data. Clinical decisions remain with qualified healthcare professionals.</p>
+</section>
+</main>
+
+<script>
+const scenarios={
+normal:{patients:42,boarding:8,beds:12,consults:3,wait:38},
+busy:{patients:85,boarding:25,beds:3,consults:9,wait:105},
+critical:{patients:115,boarding:38,beds:0,consults:17,wait:170}
+};
+
+let current="busy";
+const el=id=>document.getElementById(id);
+
+function scenario(name){
+current=name;
+resetSimulation();
+}
+
+function resetSimulation(){
+["extraBeds","extraNurses","consultReduction"].forEach(id=>el(id).value=0);
+update();
+}
+
+function update(){
+const d=scenarios[current];
+const b=Number(el("extraBeds").value);
+const n=Number(el("extraNurses").value);
+const c=Number(el("consultReduction").value);
+
+const reduction=Math.min(d.wait*.65,b*3.5+n*4+c*.22);
+const projected=Math.max(10,Math.round(d.wait-reduction));
+const improvement=Math.round((d.wait-projected)/d.wait*100);
+
+el("scenarioName").textContent=current.toUpperCase()+" SHIFT";
+el("patients").textContent=d.patients;
+el("boarding").textContent=d.boarding;
+el("beds").textContent=d.beds+b;
+el("consults").textContent=d.consults;
+el("bedValue").textContent=b;
+el("nurseValue").textContent=n;
+el("consultValue").textContent=c;
+
+el("baseline").textContent=d.wait+" min";
+el("projected").textContent=projected+" min";
+el("improvement").textContent=improvement+"%";
+el("impactBar").style.width=improvement+"%";
+
+const risk=projected>110?"CRITICAL":projected>65?"HIGH":"MODERATE";
+el("risk").textContent=risk;
+
+const insights=[];
+if(d.boarding>20)insights.push("Boarding congestion requires bed-management review.");
+if(d.beds+b<5)insights.push("Limited acute bed availability.");
+if(d.consults>7)insights.push("High pending consultation volume.");
+if(current!=="normal"&&n===0)insights.push("Review nursing staffing and workload.");
+
+el("insights").innerHTML=insights.length
+?insights.map(x=>'<div class="alert">'+x+'</div>').join("")
+:'<div class="alert good">No major operational threshold alerts.</div>';
+
+el("safety").innerHTML=current==="normal"
+?'<div class="alert good">No simulated reassessment-overdue alerts.</div>'
+:'<div class="alert">⚠️ Simulated patients with overdue reassessment require nursing review. This is a workflow alert, not a deterioration prediction.</div>';
+
+const journey=[
+["Triage",Math.round(projected*.18)],
+["Physician Assessment",Math.round(projected*.36)],
+["Consultation",Math.max(10,110-c)],
+["Boarding Transfer",Math.round(d.boarding*5/(1+b*.08))]
+];
+
+el("journey").innerHTML=journey.map(
+([name,time])=>'<div class="row"><span>'+name+'</span><strong>'+time+' min</strong></div>'
+).join("");
+
+const areas=[
+["Triage",current==="normal"?"Moderate":"High"],
+["Acute",current==="critical"?"Critical":current==="busy"?"High":"Moderate"],
+["Resuscitation",current==="critical"?"High":"Moderate"],
+["Boarding",d.boarding>20?"High":"Moderate"]
+];
+
+el("workload").innerHTML=areas.map(
+([area,level])=>'<div class="row"><span>'+area+'</span><strong>'+level+'</strong></div>'
+).join("");
+
+el("recommendation").textContent=
+"Illustrative planning result: "+improvement+
+"% lower modeled waiting time. Review bed availability, staffing and consultation workflows. This is not a validated forecast.";
+
+renderBeds(d,b);
+}
+
+function renderBeds(d,extra){
+const map=el("bedmap");
+map.innerHTML="";
+const count=Math.min(30,20+extra);
+const occupied=Math.max(0,count-(d.beds+extra));
+for(let i=0;i<count;i++){
+const busy=i<occupied;
+const button=document.createElement("button");
+button.className="bed "+(busy?"busy":"");
+button.textContent="Bed "+(i+1)+"\n"+(busy?"Occupied":"Available");
+button.style.whiteSpace="pre-line";
+button.onclick=()=>{
+map.querySelectorAll("button").forEach(x=>x.classList.remove("selected"));
+button.classList.add("selected");
+el("bedinfo").textContent="Bed "+(i+1)+": "+(busy?"Occupied":"Available")+" — synthetic operational status.";
+};
+map.appendChild(button);
+}
+el("bedinfo").textContent="Select a bed to view its status.";
+}
+
+["extraBeds","extraNurses","consultReduction"].forEach(
+id=>el(id).addEventListener("input",update)
+);
+
+update();
+</script>
+</body>
+</html>
